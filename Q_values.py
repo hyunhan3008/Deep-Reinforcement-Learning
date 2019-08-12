@@ -2,7 +2,7 @@ import numpy as np
 
 
 def Q_values(x, W1, W2, bias_W1, bias_W2):
-
+    
     """
     FILL THE CODE
     Compute the Q values as ouput of the neural network.
@@ -11,20 +11,19 @@ def Q_values(x, W1, W2, bias_W1, bias_W2):
     Use rectified linear units
     The output vectors of this function are Q and out1
     Q is the ouptut of the neural network: the Q values
-    out1 contains the activation of the nodes of the first layer
-    there are other possibilities, these are our suggestions
+    out1 contains the activation of the nodes of the first layer 
+    there are othere possibilities, these are our suggestions
     YOUR CODE STARTS HERE
     """
 
+    # relu has been applied
     # Neural activation: input layer -> hidden layer
-    
-    #calcute the activation of the nodes from the first layer
-    out1=np.maximum(0, W1.dot(x) + bias_W1)
+    out1 = np.maximum(0, np.dot(W1,x)+bias_W1)
 
     # Neural activation: hidden layer -> output layer
-    
-    # calucaltes Q values using RELU
 
-    Q = np.maximum(0, W2.dot(out1)+bias_W2)
+    Q = np.maximum(0, np.dot(W2,out1)+bias_W2)
+    # print(Q)
 
+    # YOUR CODE ENDS HERE
     return Q, out1

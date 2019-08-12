@@ -1,5 +1,5 @@
 import numpy as np
-import numpy.matlib 
+import numpy.matlib
 import matplotlib.pyplot as plt
 from degree_freedom_queen import *
 from degree_freedom_king1 import *
@@ -7,15 +7,11 @@ from degree_freedom_king2 import *
 from features import *
 from generate_game import *
 from Q_values import *
-
+np.random.seed(77)
 size_board = 4
 
-# set a random seed so results can be reproduced
-#np.random.seed(9)
-np.random.seed(10)
-#np.random.seed(11)
-
 def main():
+
     """
     Generate a new game
     The function below generates a new chess board with King, Queen and Enemy King pieces randomly assigned so that they
@@ -84,42 +80,49 @@ def main():
     refer to the number of nodes in the input layer and the number of nodes in the hidden layer respectively. The biases
      should be initialized with zeros.
     """
-    n_input_layer = 50  # Number of neurons of the input layer.
+    n_input_layer = 50  # Number of neurons of the input layer. TODO: Change this value
     n_hidden_layer = 200  # Number of neurons of the hidden layer
-    n_output_layer = 32  # Number of neurons of the output layer.
+    n_output_layer = 32  # Number of neurons of the output layer. TODO: Change this value accordingly
 
     """
     TODO: Define the w weights between the input and the hidden layer and the w weights between the hidden layer and the 
     output layer according to the instructions. Define also the biases.
     """
+    # Weights matrix, connecting input neurons (state) to hidden layers (actions). Initially random
     
-    
-    #initialises weights using a uniform distribution and rescales between layers
-    
-    W1=np.random.uniform(0,1,(n_hidden_layer,n_input_layer))
+    # W1 is defined and resclaed by the totla number of connections between the consdiered two layers
+    W1=np.random.uniform(0,1,(n_hidden_layer,n_input_layer))    
     W1=np.divide(W1,np.matlib.repmat(np.sum(W1,1)[:,None],1,n_input_layer))
-
+   
+    # W1 is defined and resclaed by the totla number of connections between the consdiered two layers
     W2=np.random.uniform(0,1,(n_output_layer,n_hidden_layer))
     W2=np.divide(W2,np.matlib.repmat(np.sum(W2,1)[:,None],1,n_hidden_layer))
-    
 
-    # initialises biases with zeros
-    
+    # bias is set to zero
     bias_W1=np.zeros((n_hidden_layer,))
     bias_W2=np.zeros((n_output_layer,))
+
 
 
     # YOUR CODES ENDS HERE
 
     # Network Parameters
     epsilon_0 = 0.2   #epsilon for the e-greedy policy
-    beta = 0.00005    #epsilon discount factor
-    gamma = 0.85      #SARSA Learning discount factor
-    eta = 0.0035      #learning rate
-    Alpha = 0.0001
-    N_episodes = 50000 #Number of games, each game ends when we have a checkmate or a draw
-
-    ###  Training Loop  ###
+    beta = 0.00005 # 0.005     #epsilon discount factor
+    gamma = 0.85  #0.15      #SARSA Learning discount factor
+    eta = 0.0035  #0.0035      #learning rate
+    N_episodes = 1000 #Number of games, each game ends when we have a checkmate or a draw
+    rmsprop = False
+    ###  Training Loop  ### 
+    #varialbe setting for RMSprop calculation
+    W2_average = 0
+    W1_average = 0
+    W2_bias_average = 0
+    W1_bias_average=0
+    eta_w2 = 0
+    eta_w1 = 0
+    eta_bias1 = 0
+    eta_bias2 = 0
 
     # Directions: down, up, right, left, down-right, down-left, up-right, up-left
     # Each row specifies a direction, 
@@ -137,14 +140,12 @@ def main():
     # NUMBER OF MOVES PER EPISODE, FILL THEM IN THE CODE ABOVE FOR THE
     # LEARNING. OTHER WAYS TO DO THIS ARE POSSIBLE, THIS IS A SUGGESTION ONLY.    
 
-    
-    #variables to track the moves per game and reward per game
+   # R_save = np.zeros([N_episodes, 1])
+    #N_moves_save = np.zeros([N_episodes, 1])
     R_save = np.zeros([N_episodes])
     N_moves_save = np.zeros([N_episodes])
-
-
-    Average_Rewards = np.zeros([N_episodes])
-    Average_moves = np.zeros([N_episodes])
+    alpha = 0.0001 # for exponential moving average
+    # END OF SUGGESTIONS
 
     for n in range(N_episodes):
         epsilon_f = epsilon_0 / (1 + beta * n) #psilon is discounting per iteration to have less probability to explore
@@ -161,9 +162,8 @@ def main():
         dfQ1, a_q1, dfQ1_ = degree_freedom_queen(p_k1, p_k2, p_q1, s)
         # Possible actions of the enemy king
         dfK2, a_k2, check = degree_freedom_king2(dfK1, p_k2, dfQ1_, s, p_k1)
-
-        #variable to store number of moves in a game
-        Moves_Counter = 0
+       
+        moves_game = 0 # to store moves per game
 
         while checkmate == 0 and draw == 0:
             R = 0  # Reward
@@ -190,32 +190,18 @@ def main():
             FILL THE CODE
             Implement epsilon greedy policy by using the vector a and a_allowed vector: be careful that the action must
             be chosen from the a_allowed vector. The index of this action must be remapped to the index of the vector a,
-            containing all the possible actions. Create a vector calle da_agent that contains the index of the action 
+            containing all the possible actions. Create a vector called a_agent that contains the index of the action 
             chosen. For instance, if a_allowed = [8, 16, 32] and you select the third action, a_agent=32 not 3.
-            """
-            
-            
-            #create array to contain Q values of possilbe actions
-            Possible_Action = []
-            
-            #eps-greedy policy implementation
-            Greedy = int(np.random.rand() > epsilon_f)             
-            if Greedy:
-                
-               #put q values of possible actions into an array
-               for i in allowed_a:
-                    Possible_Action.append(Q[i])
-            
-               #get index of highest q value from possible actions
-               Possible_Action = Possible_Action.index(max(Possible_Action))
-               #use possible_index index value to select action
-               action = allowed_a[Possible_Action]
-            else:
-                #Pick a random  allowed action
-                action = np.random.choice(allowed_a)
+            """           
 
-            # selects action as that chosen by epsilon greedy
-            a_agent = action  
+            #eps-greedy policy implementation
+            greedy = (np.random.rand() > epsilon_f)           
+            if greedy:
+                #a_agent = allowed_a[np.take(Q, allowed_a).tolist().index(max(np.take(Q, allowed_a).tolist()))]
+                a_agent = allowed_a[np.argmax(np.take(Q, allowed_a))]  #pick the best action
+            else:
+                a_agent = np.random.choice(allowed_a)                  #pick random action
+            
             #THE CODE ENDS HERE. 
 
 
@@ -229,20 +215,19 @@ def main():
                 s[p_q1[0] + mov[0], p_q1[1] + mov[1]] = 2
                 p_q1[0] = p_q1[0] + mov[0]
                 p_q1[1] = p_q1[1] + mov[1]
-
+                # One more move is made from player 1              
+                moves_game += 1
             else:
                 direction = a_agent - possible_queen_a
                 steps = 1
-
+                
                 s[p_k1[0], p_k1[1]] = 0
                 mov = map[direction, :] * steps
                 s[p_k1[0] + mov[0], p_k1[1] + mov[1]] = 1
                 p_k1[0] = p_k1[0] + mov[0]
                 p_k1[1] = p_k1[1] + mov[1]
-                
-                #increments move counter
-                Moves_Counter += 1
-
+                # One more move is made from player 1
+                moves_game += 1
             # Compute the allowed actions for the new position
 
             # Possible actions of the King
@@ -268,39 +253,34 @@ def main():
                 the action made. You computed previously Q values in the Q_values function. Be careful: this is the last 
                 iteration of the episode, the agent gave checkmate.
                 """
-                
-                # Backpropagation: output layer -> hidden layer
-                out2delta = (R - Q[a_agent]) * np.heaviside(Q[a_agent], 0)
-                #update weights and biases
-                W2[a_agent] = (W2[a_agent] - (eta * out2delta * out1))
-                bias_W2[a_agent] = (bias_W2[a_agent] - (eta * out2delta))
-            
-                # Backpropagation: hidden -> input layer
-                out1delta = np.dot(W2[a_agent], out2delta) * np.heaviside(out1, 0)
-                #update weights and biases
-                W1 = W1 - (eta * np.outer(out1delta,x))
-                bias_W1 = (bias_W1 -  (eta * out1delta))
 
-                #set the reward for the game
-                R_save[n] = R
+                #Backpropagation
+                # calcuating delta and update weight and bias for W2 
+                # if statements indicates the heaviside function
+                out1delta = np.dtype(np.complex128)
+                #Backpropagation for the output layer
+                if ((np.dot(W2[a_agent], out1)) > 0):
+                    out2delta = (R - Q[a_agent])
+                    W2[a_agent] += (eta * out2delta * out1) 
+                    bias_W2 += (eta * out2delta)
+                    #calculating backpropagationg for hidden layer
+                    if (np.sum(np.dot(W1, x)) > 0):
+                        out1delta = np.dot(W2[a_agent], out2delta)
+                        W1 += (eta * np.outer(out1delta, x))
+                        bias_W1 += (eta * out1delta)
+
+                # It is checkmate, plot rewards and moves per game (exponential moving average), alpha = 0.0001
+                if n >0:
+                    R_save[n] = ((1-alpha) * R_save[n-1]) + (alpha*R)
+                else:
+                    R_save[n] = R
+
+                if n >0:
+                    N_moves_save[n] = ((1-alpha) * N_moves_save[n-1]) + (alpha*moves_game)
+                else:
+                    N_moves_save[n] = moves_game
                 
-                #calculate the running average of the reward per game
-                Average_Rewards[n] = np.mean(R_save[:n])
-                
-                #increments move counter
-                Moves_Counter += 1
-                
-                #set the number of moves for the game
-                N_moves_save[n] = Moves_Counter
-                #calculate the running average of the moves per game
-                Average_moves[n] = np.mean(N_moves_save[:n])
-                
-                #calculate the exponential moving average of the reward
-                if n > 0:
-                    R_save[n] = ((1-Alpha) * R_save[n-1]) + (Alpha*R_save[n])
-                    
                 # THE CODE ENDS HERE
-
                 if checkmate:
                     break
 
@@ -317,38 +297,29 @@ def main():
                 iteration of the episode, it is a draw.
                 """
                 
-                
-                # Backpropagation: output layer -> hidden layer
-                out2delta = (R - Q[a_agent]) * np.heaviside(Q[a_agent], 0)
-                #update weights and biases
-                W2[a_agent] = (W2[a_agent] - (eta * out2delta * out1))
-                bias_W2[a_agent] = (bias_W2[a_agent] - (eta * out2delta))
-            
-                # Backpropagation: hidden -> input layer
-                out1delta = np.dot(W2[a_agent], out2delta) * np.heaviside(out1, 0)
-                #update weights and biases
-                W1 = W1 - (eta * np.outer(out1delta,x))
-                bias_W1 = (bias_W1 -  (eta * out1delta))
-                
+                out1delta = np.dtype(np.complex128)
+                #Backpropagation, same as above
+                if ((np.dot(W2[a_agent], out1)) > 0):
+                    out2delta = (R - Q[a_agent])
+                    W2[a_agent] += (eta * out2delta * out1) 
+                    bias_W2 += (eta * out2delta)
+                    if (np.sum(np.dot(W1, x)) > 0):
+                        out1delta = np.dot(W2[a_agent], out2delta)
+                        W1 += (eta * np.outer(out1delta, x))
+                        bias_W1 += (eta * out1delta)
 
-                #set the reward for the game
-                R_save[n] = R
                 
-                #calculate the running average of the reward per game
-                Average_Rewards[n] = np.mean(R_save[:n])
-                
-                #increments move counter
-                Moves_Counter += 1
-                
-                #set the number of moves for the game
-                N_moves_save[n] = Moves_Counter
-                #calculate the running average of the moves per game
-                Average_moves[n] = np.mean(N_moves_save[:n])
-                
-                #calculate the exponential moving average of the reward
-                if n > 0:
-                    R_save[n] = ((1-Alpha) * R_save[n-1]) + (Alpha*R_save[n])
+                # It is draw, plot rewards and moves per game (exponential moving average), alpha = 0.0001
+                if n >0:
+                    R_save[n] = ((1-alpha) * R_save[n-1]) + (alpha*R)
+                else:
+                    R_save[n] = R
 
+                if n >0:
+                    N_moves_save[n] = ((1-alpha) * N_moves_save[n-1]) + (alpha*moves_game)
+                else:
+                    N_moves_save[n] = moves_game
+                
                 # YOUR CODE ENDS HERE
                 if draw:
                     break
@@ -368,7 +339,8 @@ def main():
 
                 p_k2[0] = p_k2[0] + mov[0]
                 p_k2[1] = p_k2[1] + mov[1]
-
+                # one more move
+                moves_game += 1
 
             # Update the parameters
 
@@ -390,77 +362,82 @@ def main():
             the action made. You computed previously Q values in the Q_values function. Be careful: this is not the last 
             iteration of the episode, the match continues.
             """
-            
-            #increments move counter
-            Moves_Counter += 1
-            
-            #set new actions and allowed actions
-            SARSA_a = np.concatenate([np.array(a_q1), np.array(a_k1)])
-            allowed_a = np.where(SARSA_a > 0)[0]
-            
-            #create array to contain Q values of possilbe actions
-            Possible_Action = []
-            
-            #eps-greedy policy implementation
-            Greedy = int(np.random.rand() > epsilon_f)             
-            if Greedy:
-                
-               #put q values of possible actions into an array
-               for i in allowed_a:
-                    Possible_Action.append(Q[i])
-            
-               #get index of highest q value from possible actions
-               Possible_Action = Possible_Action.index(max(Possible_Action))
-               #use possible_index index value to select action
-               action = allowed_a[Possible_Action]
-            else:
-                #Pick a random  allowed action
-                action = np.random.choice(allowed_a)
+            # error cost function
+            # error = 0.5*((R- (gamma*np.max(Q_next))-Q[a_agent])**2)
+            # print(error)
 
-            # selects new action as that chosen by epsilon greedy
-            a_agent = action    
-            
-            # Backpropagation: output layer -> hidden layer
-            out2delta = ((R + (gamma * np.max(Q_next)) - Q[a_agent]) * np.heaviside(Q[a_agent], 0))
-            #update weights and biases
-            W2[a_agent] = (W2[a_agent] - (eta * out2delta * out1))
-            bias_W2[a_agent] = (bias_W2[a_agent] - (eta * out2delta))
+            # FOR SARSA - Reapply epsilong greedy policy for Q_next
+            # a_new = np.concatenate([np.array(a_q1), np.array(a_k1)])
+            # allowed_a = np.where(a_new > 0)[0]
+
+            ##eps-greedy policy implementation
+            # greedy = (np.random.rand() > epsilon_f)           
+            # if greedy:
+            #     #a_agent = allowed_a[np.take(Q, allowed_a).tolist().index(max(np.take(Q, allowed_a).tolist()))]
+            #     next_agent = allowed_a[np.argmax(np.take(Q, allowed_a))]  #pick the best action
+            # else:
+            #     next_agent = np.random.choice(allowed_a)                  #pick random action
+
         
-            # Backpropagation: hidden -> input layer
-            out1delta = np.dot(W2[a_agent], out2delta) * np.heaviside(out1, 0)
-            #update weights and biases
-            W1 = W1 - (eta * np.outer(out1delta,x))
-            bias_W1 = (bias_W1 -  (eta * out1delta))
+
+            # out1delta = np.dtype(np.complex128) # to preven to overflowing issues
+            # #Backpropagation, same as above but this time the next Q-value is considered.
+            # #RMSprop is activated when it is set to True
+            # if ((np.dot(W2[a_agent], out1)) > 0):
+            #     out2delta = (R - Q[a_agent] + gamma * np.max(Q_next))
+            #     #FOR SARSA
+            #     # out2delta = (R - Q[a_agent] + gamma * Q_next(next_agent))
+            #     out1delta = np.dot(W2[a_agent], out2delta)
+            #     W1_d = np.outer(x, out1delta)
+            #     W2_d = np.outer(out1, out2delta)
+            #     if rmsprop:
+            #         alpha_rms = 0.9 #  a recmommend value
+            #         # The calculation of RMSProp
+            #         W2_average = (alpha_rms * W2_average) +(1.0 - alpha_rms) * (W2_d)**2
+            #         W1_average = (alpha_rms * W1_average) +(1.0 - alpha_rms) * (W1_d)**2
+            #         W2_bias_average = (alpha_rms * W2_bias_average) +(1.0 - alpha_rms) * (out2delta)**2
+            #         W1_bias_average = (alpha_rms * W1_bias_average) +(1.0 - alpha_rms) * (out1delta)**2
+            #         # applying different learning rates
+            #         eta_w2 = eta/ np.sqrt(W2_average[a_agent])
+            #         eta_w1 = eta / np.sqrt(W1_average)
+            #         eta_bias2 = eta/ W2_bias_average
+            #         eta_bias1 = eta/ W1_bias_average
+            #     W2[a_agent] += (eta_w2 * out2delta * out1) 
+            #     bias_W2 += (eta_bias2 * out2delta)
+            #     #backpropagation for the hidden layer
+            #     if (np.sum(np.dot(W1, x)) > 0):
+            #         # W1 += np.outer(x, out1delta).T * eta_w1.T
+            #         # bias_W1 += (eta_bias1 * out1delta)
+            # else: # without rmsprop, just normal backpropagation as before is applied
+            out1delta = np.dtype(np.complex128)
+            if ((np.dot(W2[a_agent], out1)) > 0):
+                out2delta = (R - Q[a_agent]+ gamma * np.max(Q_next))
+                W2[a_agent] += (eta * out2delta * out1) 
+                bias_W2 += (eta * out2delta)
+                if (np.sum(np.dot(W1, x)) > 0):
+                    out1delta = np.dot(W2[a_agent], out2delta)
+                    W1 += (eta * np.outer(out1delta, x))
+                    bias_W1 += (eta * out1delta)                
+
+
+            # match continues, so one more move
+            moves_game += 1
 
             # YOUR CODE ENDS HERE
             i += 1
     
-    fontSize = 18
+    fontSize = 12
 
-    print("Results for SARSA learning:")
-    
-    print("running average of the number of moves per game:")
-    
-    # plots the running average of the number of moves per game
-    plt.plot(Average_moves)
-    #set axis labels
-    plt.xlabel('Number of episodes', fontsize = fontSize)
-    plt.ylabel('Average Moves Per Game', fontsize = fontSize)
-    #display plot
+    plt.plot(R_save)
+    plt.xlabel('Nth Game', fontsize=fontSize)
+    plt.ylabel('Rewards per Game (Defalut)', fontsize=fontSize)
     plt.show()
     
-    print("running average of the reward per game:")
-    
-    #plot running average of rewards
-    #plt.plot(Average_Rewards)
-    
-    # plots the exponential moving average of the reward per game
-    plt.plot(R_save)
-    #set axis labels
-    plt.xlabel('Number of episodes', fontsize = fontSize)
-    plt.ylabel('Average Reward Per Game', fontsize = fontSize)
-    #display plot
+    plt.plot(N_moves_save)
+    plt.xlabel('Nth Game', fontsize=fontSize)
+    plt.ylabel('moves per Game (Defalut)', fontsize=fontSize)
     plt.show()
 
 if __name__ == '__main__':
+
     main()
